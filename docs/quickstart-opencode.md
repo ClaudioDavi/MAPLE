@@ -46,22 +46,39 @@ Verify: `maple --version`
 
 ## 2. Configure OpenCode providers
 
-OpenCode reads `opencode.json` in your project root. MAPLE ships a pre-configured one that uses Anthropic and GitHub Copilot providers. Edit it to match your available API keys:
-
-```json
-{
-  "providers": {
-    "anthropic": { "apiKey": "$ANTHROPIC_API_KEY" },
-    "github-copilot": {}
-  }
-}
-```
-
-For GitHub Copilot, authenticate with:
+MAPLE ships a default `opencode.json`. The recommended way to wire up a provider is
+to pass `--provider` when scaffolding the project:
 
 ```bash
-gh auth login --scopes copilot
+cd your-project-directory
+maple init --provider anthropic       # public Anthropic API
+maple init --provider openai          # OpenAI
+maple init --provider github-copilot  # GitHub Copilot (aliases: copilot)
+maple init --provider amazon-bedrock  # AWS Bedrock (aliases: bedrock, aws)
 ```
+
+This writes the provider block into `opencode.json`, sets a sensible default model,
+and stamps every agent's `model:` frontmatter with a tier-appropriate model ID
+(Opus tier for `orchestrator`/`architect`, Sonnet tier for implementation agents,
+Haiku tier for `docs`/`rubber-duck`).
+
+Pin every agent to one specific model:
+
+```bash
+maple init --provider openai --model openai/gpt-5
+```
+
+The choice is persisted in `.maple/provider.json` and replayed by every later
+`maple update`, so you don't need to pass the flag again.
+
+### Provider-specific credentials
+
+| Provider | Credential |
+|---|---|
+| `anthropic` | `export ANTHROPIC_API_KEY=sk-ant-...` |
+| `openai` | `export OPENAI_API_KEY=sk-...` |
+| `github-copilot` | `gh auth login --scopes copilot` |
+| `amazon-bedrock` | `export AWS_PROFILE=...` (or `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`) + `AWS_REGION`. See [Quickstart — AWS Bedrock](./quickstart-bedrock.md). |
 
 ---
 
@@ -118,15 +135,19 @@ The orchestrator follows the same 8-phase pipeline as in Claude Code. Agent rout
 
 ## Agent model routing
 
-OpenCode agents declare their own model in frontmatter. MAPLE's defaults:
+Every agent in `.opencode/agents/{name}.md` has a `model:` field in its frontmatter,
+written by `maple init --provider <name>`. Tiers:
 
-| Agent | Model |
-|---|---|
-| `orchestrator`, `architect` | `anthropic/claude-opus-4-7` |
-| Implementation agents | `github-copilot/claude-sonnet-4.5` |
-| `kubernetes`, `terraform`, `docker` | `copilot/gpt-4.1` |
+| Tier | Agents | Why |
+|---|---|---|
+| deep | `orchestrator`, `architect` | Pipeline control + ADRs need the strongest reasoning. |
+| fast | most implementation agents | Cost/latency sweet spot for code. |
+| small | `docs`, `rubber-duck`, `humanizer`, `spec-kit` | Light prose / review tasks. |
 
-Change any agent's model by editing the `model:` field in its `.opencode/agents/{name}.md` file.
+Deviate from the defaults by editing an agent's `model:` to a value that does **not**
+start with one of MAPLE's known provider prefixes (`anthropic/`, `openai/`,
+`github-copilot/`, `amazon-bedrock/`). Such hand-set values are preserved across
+`maple update`. To pin everything to one model, use `--model <id>` on init/update.
 
 ---
 

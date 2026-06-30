@@ -44,7 +44,28 @@ Verify: `maple --version`
 
 ---
 
-## 2. Scaffold your project
+## 2. (Optional) Route Claude Code through AWS Bedrock
+
+By default Claude Code uses the public Anthropic API. To run the same models through
+your AWS account instead, scaffold the project with `--provider bedrock`:
+
+```bash
+maple init --provider bedrock
+source scripts/maple/provider.env
+claude .
+```
+
+`maple init` writes the required env vars
+(`CLAUDE_CODE_USE_BEDROCK=1`, `AWS_REGION`, `ANTHROPIC_MODEL`,
+`ANTHROPIC_SMALL_FAST_MODEL`) to `scripts/maple/provider.env`, and stamps each
+agent's `model:` frontmatter with a tier-appropriate Bedrock model ID.
+
+Full setup (IAM, model access, per-agent overrides, troubleshooting) is in
+[Quickstart — AWS Bedrock](./quickstart-bedrock.md).
+
+---
+
+## 3. Scaffold your project
 
 ```bash
 cd your-project-directory
@@ -57,7 +78,7 @@ After init, `maple` launches the boot check and drops you into the dashboard.
 
 ---
 
-## 3. Customize the Makefile
+## 4. Customize the Makefile
 
 The Makefile ships with stubs. Open `Makefile` and replace the recipe bodies with your stack's commands:
 
@@ -77,7 +98,7 @@ test-e2e:
 
 ---
 
-## 4. Bootstrap GitHub
+## 5. Bootstrap GitHub
 
 Authenticate with the GitHub CLI, then from the `maple` dashboard:
 
@@ -90,13 +111,13 @@ Or from the CLI: `maple labels` / `maple project`.
 
 ---
 
-## 5. Write your first story
+## 6. Write your first story
 
 Press `n` in the dashboard (or run `maple req`) to open the Gherkin requirements wizard. Walk through the prompts — the wizard produces a story file at `docs/stories/{slug}/Story.md` with embedded Gherkin and links it to a GitHub Issue.
 
 ---
 
-## 6. Run a feature
+## 7. Run a feature
 
 Open the project in **Claude Code**:
 

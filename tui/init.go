@@ -347,6 +347,38 @@ func doInit(tools Tools, fsys fs.FS, force bool) ([]string, error) {
 	log("✓ taffy workflows ready (.claude/taffy/, .opencode/taffy/, .cursor/taffy/)")
 	log("✓ humanizer skill ready (remove AI-isms from documentation/prose)")
 
+	// Provider wiring (--provider/--model on `maple init` or `maple update`).
+	// On `maple update` without flags, fall back to the persisted choice in .maple/provider.json
+	// so re-running update doesn't undo the user's previous provider selection.
+	provName, modelOverride := initProviderFlag, initModelFlag
+	explicit := initProviderFlag != ""
+	if provName == "" {
+		if p, m := loadProviderState(cwd); p != "" {
+			provName, modelOverride = p, m
+			if initModelFlag != "" {
+				modelOverride = initModelFlag // --model refines the persisted provider
+			}
+		}
+	}
+	if initModelFlag != "" && provName == "" {
+		log("~ --model ignored: no --provider given and none persisted in .maple/provider.json")
+	}
+	if provName != "" {
+		if preset, err := resolveProvider(provName); err == nil && preset != nil {
+			for _, line := range applyProvider(preset, modelOverride, cwd, explicit) {
+				log(line)
+			}
+			if preset.SetupHint != "" {
+				log("")
+				for _, l := range strings.Split(preset.SetupHint, "\n") {
+					log("  " + l)
+				}
+			}
+		} else if err != nil {
+			log("~ provider: " + err.Error())
+		}
+	}
+
 	return logs, nil
 }
 
