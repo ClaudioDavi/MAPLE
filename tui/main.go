@@ -17,19 +17,52 @@ import (
 
 var version = "dev" // overridden at build time: -ldflags "-X main.version=vX.Y.Z"
 
+// Provider flag state — set by `--provider` / `--model` in main(), consumed by doInit().
+// Mirrors pi-coding-agent's CLI shape (pi --provider amazon-bedrock --model <id>).
+var (
+	initProviderFlag string
+	initModelFlag    string
+)
+
 func main() {
 	args := os.Args[1:]
 	tplFS, _ := resolveTemplateFS()
 
 	noAnimate := contains(args, "--no-animate")
-	// strip --no-animate so subcommand parsing below is unaffected
+	// Strip global flags so subcommand parsing below is unaffected.
+	// Supports both `--flag value` and `--flag=value` forms.
 	var cleanArgs []string
-	for _, a := range args {
-		if a != "--no-animate" {
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		switch {
+		case a == "--no-animate":
+			continue
+		case a == "--provider":
+			if i+1 < len(args) {
+				initProviderFlag = args[i+1]
+				i++
+			}
+		case strings.HasPrefix(a, "--provider="):
+			initProviderFlag = strings.TrimPrefix(a, "--provider=")
+		case a == "--model":
+			if i+1 < len(args) {
+				initModelFlag = args[i+1]
+				i++
+			}
+		case strings.HasPrefix(a, "--model="):
+			initModelFlag = strings.TrimPrefix(a, "--model=")
+		default:
 			cleanArgs = append(cleanArgs, a)
 		}
 	}
 	args = cleanArgs
+
+	// Validate provider early so a typo fails before we touch the filesystem.
+	if initProviderFlag != "" {
+		if _, err := resolveProvider(initProviderFlag); err != nil {
+			fatalf("%v", err)
+		}
+	}
 
 	// No args → interactive TUI (boot check + dashboard if initialized, menu otherwise)
 	if len(args) == 0 {
@@ -271,9 +304,19 @@ Usage:
   maple resume-session claude   Resume specifically the pinned claude session
   maple rtk-audit         Run rtk hook-audit (verify hook wiring + show savings)
 
-  maple --no-animate      Skip logo animations (SSH / slow terminals)
-  maple --version         Print version
-  maple --help            Show this help
+Flags:
+  --provider <name>       Configure model provider during init/update.
+                          One of: anthropic, openai, github-copilot, amazon-bedrock
+                          (aliases: claude, copilot, bedrock).
+                          Choice is persisted to .maple/provider.json and reused
+                          on subsequent 'maple update'.
+  --model <id>            Pin every agent to a specific model id (overrides the
+                          provider's per-tier defaults). Example:
+                            maple init --provider bedrock \
+                              --model amazon-bedrock/us.anthropic.claude-sonnet-4-6
+  --no-animate            Skip logo animations (SSH / slow terminals)
+  --version               Print version
+  --help                  Show this help
 `, version)
 }
 

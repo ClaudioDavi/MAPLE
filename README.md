@@ -310,6 +310,7 @@ Skills install via `npx skills add <pkg> --all -y` and work across Claude Code, 
 | [Quickstart — OpenCode](./docs/quickstart-opencode.md) | Install, configure providers, first feature |
 | [Quickstart — Cursor](./docs/quickstart-cursor.md) | Install, enable Cursor skills, first feature |
 | [Quickstart — Copilot CLI](./docs/quickstart-copilot-cli.md) | Install, enable Rubber Duck, first feature |
+| [Quickstart — AWS Bedrock](./docs/quickstart-bedrock.md) | Route Claude Code / OpenCode through AWS Bedrock |
 | [The 8-Phase Pipeline](./docs/pipeline.md) | Phase details, TDD loop, Makefile contract |
 | [The Agents](./docs/agents.md) | Full agent roster, skills, adding custom agents |
 | [Customization Guide](./docs/customization.md) | Add agents, restrict permissions, extend skills |

@@ -839,22 +839,44 @@ func (m *reqModel) launchImplementationCmd(ai aiOption) tea.Cmd {
 // The prompt is passed as a positional argument (not stdin) to avoid inheriting
 // the Bubble Tea raw-mode terminal state in the subprocess.
 func invokeAI(ai aiOption, prompt string) ([]byte, error) {
+	// Layer the persisted --provider choice onto this inline call so `maple req`
+	// uses the same provider/model the squad runs on, not the bare harness default.
+	baseEnv := os.Environ()
+	var provEnv []string
+	var model string
+	if cwd, err := os.Getwd(); err == nil {
+		_, provEnv, model = reqProviderRuntime(cwd, baseEnv)
+	}
+
 	var cmd *exec.Cmd
 	switch ai.kind {
 	case "claude":
 		// -p = --print (non-interactive), prompt is positional arg.
 		// --output-format text suppresses JSON wrappers.
 		// --no-session-persistence avoids writing session files.
-		cmd = exec.Command(ai.path, "-p", "--output-format", "text", "--no-session-persistence", prompt)
+		args := []string{"-p", "--output-format", "text", "--no-session-persistence"}
+		if model != "" {
+			args = append(args, "--model", stripProviderPrefix(model))
+		}
+		args = append(args, prompt)
+		cmd = exec.Command(ai.path, args...)
 	case "copilot":
 		cmd = exec.Command(ai.path, "-i", prompt)
 	case "opencode":
-		cmd = exec.Command(ai.path, "run")
+		args := []string{"run"}
+		if model != "" {
+			args = append(args, "--model", model)
+		}
+		cmd = exec.Command(ai.path, args...)
 		cmd.Stdin = strings.NewReader(prompt)
 	case "cursor":
-		return invokeCursor(ai.path, prompt)
+		return invokeCursor(ai.path, prompt, append(baseEnv, provEnv...))
 	default:
 		return nil, fmt.Errorf("unsupported AI tool: %s", ai.kind)
+	}
+
+	if len(provEnv) > 0 {
+		cmd.Env = append(baseEnv, provEnv...)
 	}
 
 	out, err := cmd.CombinedOutput()
@@ -868,7 +890,7 @@ func invokeAI(ai aiOption, prompt string) ([]byte, error) {
 	return out, nil
 }
 
-func invokeCursor(binPath, prompt string) ([]byte, error) {
+func invokeCursor(binPath, prompt string, env []string) ([]byte, error) {
 	candidates := []*exec.Cmd{
 		exec.Command(binPath, "-p", "--output-format", "text", "--trust", prompt),
 		exec.Command(binPath, "-p", prompt),
@@ -881,6 +903,7 @@ func invokeCursor(binPath, prompt string) ([]byte, error) {
 
 	var lastErr string
 	for _, cmd := range candidates {
+		cmd.Env = env
 		out, err := cmd.CombinedOutput()
 		if err == nil {
 			return out, nil

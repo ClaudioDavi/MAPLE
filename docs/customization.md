@@ -151,6 +151,37 @@ MAPLE ships built-in taffy workflows in `.claude/taffy/` — no extra install ne
 
 ---
 
+## Switching the model provider
+
+MAPLE supports four model providers, selected via `--provider` on `maple init` or
+`maple update` (same shape as the [pi-coding-agent](https://github.com/mariozechner/pi-coding-agent)
+CLI):
+
+```bash
+maple init --provider anthropic       # public Anthropic API
+maple init --provider openai          # OpenAI
+maple init --provider github-copilot  # GitHub Copilot (aliases: copilot)
+maple init --provider amazon-bedrock  # AWS Bedrock (aliases: bedrock, aws)
+
+# Pin every agent to one specific model
+maple init --provider bedrock --model amazon-bedrock/us.anthropic.claude-sonnet-4-6
+```
+
+Each run patches `opencode.json`, fills in the `model:` field of every agent file
+(`.opencode/agents/*.md` + `.claude/agents/*.md`) with a tier-appropriate ID
+(`orchestrator`/`architect` → Opus tier, implementation agents → Sonnet/equivalent,
+`docs`/`rubber-duck`/`humanizer` → Haiku tier), and persists the choice to
+`.maple/provider.json` so `maple update` replays it automatically.
+
+Hand-set `model:` values — anything whose prefix is not `anthropic/`, `openai/`,
+`github-copilot/`, or `amazon-bedrock/` — are preserved across updates. To revert
+an agent to MAPLE's managed default, delete its `model:` line and re-run init.
+
+For Bedrock specifically (env vars, IAM, model access, troubleshooting), see
+[Quickstart — AWS Bedrock](./quickstart-bedrock.md).
+
+---
+
 ## Switching themes
 
 The `maple` TUI supports five built-in themes. Switch from the dashboard:
